@@ -13,7 +13,9 @@ namespace PaletteConverter
 		{
 			string filePath = args[0];
 
-			var colors = new List<Color>();
+			var colors = new Color[256, 256];
+			int colorsColumnIndex = 0;
+			int colorsRowIndex = 0;
 
 			var attr = File.GetAttributes(filePath);
 			if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
@@ -25,7 +27,7 @@ namespace PaletteConverter
 				{
 					string newPath = GetFilePathRelative(filePath, file, "Processed");
 
-					if (!ProcessImage(file, newPath, colors))
+					if (!ProcessImage(file, newPath, colors, ref colorsColumnIndex, ref colorsRowIndex))
 						return;
 				}
 			}
@@ -35,14 +37,33 @@ namespace PaletteConverter
 
 				string newPath = filePath.Substring(0, filePath.Length - 4) + "_processed.png";
 
-				if (!ProcessImage(filePath, newPath, colors))
+				if (!ProcessImage(filePath, newPath, colors, ref colorsColumnIndex, ref colorsRowIndex))
 					return;
 			}
 
-			var lut = new Bitmap(256, 1);
-			for (int i = 0; i < 256; i++)
+			Bitmap lut;
+			if (colorsRowIndex <= 0)
 			{
-				lut.SetPixel(i, 0, i < colors.Count ? colors[i] : Color.Black);
+				lut = new Bitmap(256, 1);
+				for (int i = 0; i < 256; i++)
+					lut.SetPixel(i, 0, i <= colorsColumnIndex ? colors[i, 0] : Color.Black);
+			}
+			else
+			{
+				lut = new Bitmap(256, 256);
+				for (int y = 0; y < 256; y++)
+				{
+					for (int x = 0; x < 256; x++)
+					{
+						Color color;
+						if (y <= colorsColumnIndex && x <= colorsRowIndex)
+							color = colors[y, x];
+						else
+							color = Color.Black;
+
+						lut.SetPixel(y, x, color);
+					}
+				}
 			}
 
 			string lutPath = "LUT.png";
@@ -52,7 +73,7 @@ namespace PaletteConverter
 			Console.WriteLine($"Saved {lutPath}");
 		}
 
-		private static bool ProcessImage(string filePath, string newPath, List<Color> colors)
+		private static bool ProcessImage(string filePath, string newPath, Color[,] colors, ref int colorsColumnIndex, ref int colorsRowIndex)
 		{
 			Console.WriteLine($"Processing file: {filePath}");
 
@@ -65,20 +86,35 @@ namespace PaletteConverter
 					var pixel = bmp.GetPixel(x, y);
 					var lutPixel = Color.FromArgb(pixel.R, pixel.G, pixel.B);
 
-					int index = colors.IndexOf(lutPixel);
-					if (index < 0)
+					int foundColumn;
+					int foundRow;
+					GetColorIndexes(colors, lutPixel, out foundColumn, out foundRow);
+
+					if (foundColumn < 0 || foundRow < 0)
 					{
-						index = colors.Count;
-						colors.Add(lutPixel);
+						foundColumn = colorsColumnIndex;
+						foundRow = colorsRowIndex;
+
+						colors[foundColumn, foundRow] = lutPixel;
+
+						colorsColumnIndex++;
+						if (colorsColumnIndex >= 256)
+						{
+							colorsColumnIndex = 0;
+							colorsRowIndex++;
+						}
 					}
 
-					if (colors.Count >= 255)
+					if (colorsColumnIndex >= 256 || colorsRowIndex >= 256)
 					{
-						Console.WriteLine("ERROR: More than 256 colors found!");
+						Console.WriteLine($"ERROR: More than {256 * 256} colors found!");
 						return false;
 					}
 
-					var newPixel = Color.FromArgb(pixel.A, index, 0, 0);
+					//if (foundRow != 0)
+						//Console.Write($"Setting pixel at {x}, {y} to R: {foundColumn}, G: {foundRow}");
+
+					var newPixel = Color.FromArgb(255, foundColumn, foundRow, 0);
 					bmp.SetPixel(x, y, newPixel);
 				}
 			}
@@ -88,6 +124,26 @@ namespace PaletteConverter
 			Console.WriteLine($"Saved {newPath}");
 
 			return true;
+		}
+
+		private static void GetColorIndexes(Color[,] colors, Color color, out int columnIndex, out int rowIndex)
+		{
+			for (int y = 0; y < colors.GetLength(0); y++)
+			{
+				for (int x = 0; x < colors.GetLength(1); x++)
+				{
+					if (colors[y, x] == color)
+					{
+						columnIndex = y;
+						rowIndex = x;
+						return;
+					}
+				}
+			}
+
+			columnIndex = -1;
+			rowIndex = -1;
+			return;
 		}
 
 		private static string GetFilePathRelative(string sourceRootPath, string sourcePath, string targetPath)
