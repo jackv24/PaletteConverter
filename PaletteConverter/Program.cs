@@ -1,9 +1,11 @@
 ﻿using System;
 using System.IO;
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-using System.Collections.Generic;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Png;
 
 namespace PaletteConverter
 {
@@ -16,7 +18,7 @@ namespace PaletteConverter
 		{
 			string filePath = args[0];
 
-			var colors = new Color[LUT_WIDTH, LUT_HEIGHT];
+			var colors = new Rgba32[LUT_WIDTH, LUT_HEIGHT];
 			int colorsColumnIndex = 0;
 			int colorsRowIndex = 0;
 
@@ -44,50 +46,50 @@ namespace PaletteConverter
 					return;
 			}
 
-			Bitmap lut;
+			Image<Rgba32> lut;
 			if (colorsRowIndex <= 0)
 			{
-				lut = new Bitmap(LUT_WIDTH, 1);
+				lut = new Image<Rgba32>(LUT_WIDTH, 1);
 				for (int i = 0; i < LUT_WIDTH; i++)
-					lut.SetPixel(i, 0, i <= colorsColumnIndex ? colors[i, 0] : Color.Black);
+					lut[i, 0] = i <= colorsColumnIndex ? colors[i, 0] : Rgba32.Black;
 			}
 			else
 			{
-				lut = new Bitmap(LUT_WIDTH, LUT_HEIGHT);
+				lut = new Image<Rgba32>(LUT_WIDTH, LUT_HEIGHT);
 				for (int y = 0; y < LUT_WIDTH; y++)
 				{
 					for (int x = 0; x < LUT_HEIGHT; x++)
 					{
-						Color color;
+						Rgba32 color;
 						if (x > colorsRowIndex || (x == colorsRowIndex && y > colorsColumnIndex))
-							color = Color.Black;
+							color = Rgba32.Black;
 						else
 							color = colors[y, x];
 
-						lut.SetPixel(y, x, color);
+						lut[y, x] = color;
 					}
 				}
 			}
 
 			string lutPath = "LUT.png";
 
-			lut.Save(lutPath, ImageFormat.Png);
+			lut.Save(lutPath);
 			lut.Dispose();
 			Console.WriteLine($"Saved {lutPath}");
 		}
 
-		private static bool ProcessImage(string filePath, string newPath, Color[,] colors, ref int colorsColumnIndex, ref int colorsRowIndex)
+		private static bool ProcessImage(string filePath, string newPath, Rgba32[,] colors, ref int colorsColumnIndex, ref int colorsRowIndex)
 		{
 			Console.WriteLine($"Processing file: {filePath}");
 
-			var bmp = new Bitmap(filePath);
+			var bmp = Image.Load<Rgba32>(filePath);
 
 			for (int y = 0; y < bmp.Height; y++)
 			{
 				for (int x = 0; x < bmp.Width; x++)
 				{
-					var pixel = bmp.GetPixel(x, y);
-					var lutPixel = Color.FromArgb(pixel.R, pixel.G, pixel.B);
+					var pixel = bmp[x, y];
+					var lutPixel = new Rgba32(pixel.R, pixel.G, pixel.B);
 
 					GetColorIndexes(colors, lutPixel, out int foundColumn, out int foundRow);
 
@@ -112,19 +114,18 @@ namespace PaletteConverter
 						return false;
 					}
 
-					var newPixel = Color.FromArgb(pixel.A, foundColumn, foundRow, 0);
-					bmp.SetPixel(x, y, newPixel);
+					bmp[x, y] = new Rgba32((float)foundColumn / LUT_WIDTH, (float)foundRow / LUT_HEIGHT, 0, pixel.A);
 				}
 			}
 
-			bmp.Save(newPath, ImageFormat.Png);
+			bmp.Save(newPath);
 			bmp.Dispose();
 			Console.WriteLine($"Saved {newPath}");
 
 			return true;
 		}
 
-		private static void GetColorIndexes(Color[,] colors, Color color, out int columnIndex, out int rowIndex)
+		private static void GetColorIndexes(Rgba32[,] colors, Rgba32 color, out int columnIndex, out int rowIndex)
 		{
 			for (int y = 0; y < colors.GetLength(0); y++)
 			{
