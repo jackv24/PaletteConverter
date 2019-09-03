@@ -11,31 +11,48 @@ namespace PaletteConverter
 {
 	public class Program
 	{
+		// TODO: Automatically determine LUT size
 		private const int LUT_WIDTH = 256;
 		private const int LUT_HEIGHT = 256;
 
 		private static void Main(string[] args)
 		{
-			string filePath = args[0];
+			if (args == null || args.Length < 1)
+			{
+				string appName = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+				Console.WriteLine($"Proper usage: {appName} <target> [LUT Path]");
+				return;
+			}
 
+			string filePath = args[0];
+			string lutPath = args.Length >= 2 ? args[1] : "LUT.png";
+
+			// Create array that matches LUT size to store colors while iterating over images
 			var colors = new Rgba32[LUT_WIDTH, LUT_HEIGHT];
+
+			// Keep track of the current indexes (since we've already created an array of fixed size)
 			int colorsColumnIndex = 0;
 			int colorsRowIndex = 0;
 
+			// If path is a directory, run on all files inside
 			var attr = File.GetAttributes(filePath);
 			if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
 			{
 				Console.WriteLine("Processing directory..");
 
+				// We only care about PNG files (can't use JPEGs for this, we need absolute correct pixels)
 				string[] files = Directory.GetFiles(filePath, "*.png", SearchOption.AllDirectories);
 				foreach (var file in files)
 				{
+					// Preserve folder structure when creating encoded copies
 					string newPath = GetFilePathRelative(filePath, file, "Processed");
 
+					// Keep processing images unless and error is detected
 					if (!ProcessImage(file, newPath, colors, ref colorsColumnIndex, ref colorsRowIndex))
 						return;
 				}
 			}
+			// If path is a single file, just process the one file
 			else
 			{
 				Console.WriteLine("Processing individual file..");
@@ -46,12 +63,16 @@ namespace PaletteConverter
 					return;
 			}
 
+			// Only creat 1D LUT if we can, otherwise created 2D LUT
 			Image<Rgba32> lut;
 			if (colorsRowIndex <= 0)
 			{
 				lut = new Image<Rgba32>(LUT_WIDTH, 1);
 				for (int i = 0; i < LUT_WIDTH; i++)
+				{
+					// Fill LUT with color palette, using black for extra pixels
 					lut[i, 0] = i <= colorsColumnIndex ? colors[i, 0] : Rgba32.Black;
+				}
 			}
 			else
 			{
@@ -60,6 +81,7 @@ namespace PaletteConverter
 				{
 					for (int x = 0; x < LUT_HEIGHT; x++)
 					{
+						// Fill LUT with color palette, using black for extra pixels
 						Rgba32 color;
 						if (x > colorsRowIndex || (x == colorsRowIndex && y > colorsColumnIndex))
 							color = Rgba32.Black;
@@ -70,8 +92,6 @@ namespace PaletteConverter
 					}
 				}
 			}
-
-			string lutPath = "LUT.png";
 
 			lut.Save(lutPath);
 			lut.Dispose();
@@ -91,8 +111,10 @@ namespace PaletteConverter
 					var pixel = bmp[x, y];
 					var lutPixel = new Rgba32(pixel.R, pixel.G, pixel.B);
 
+					// Find existing color in LUT buffer
 					GetColorIndexes(colors, lutPixel, out int foundColumn, out int foundRow);
 
+					// Color does not exist in LUT buffer, add it
 					if (foundColumn < 0 || foundRow < 0)
 					{
 						foundColumn = colorsColumnIndex;
@@ -100,6 +122,7 @@ namespace PaletteConverter
 
 						colors[foundColumn, foundRow] = lutPixel;
 
+						// Increment index, wrapping onto next line if needed (2D LUT will be created)
 						colorsColumnIndex++;
 						if (colorsColumnIndex >= LUT_WIDTH)
 						{
@@ -114,6 +137,7 @@ namespace PaletteConverter
 						return false;
 					}
 
+					// Encode LUT UV coordinates for pixel into image
 					bmp[x, y] = new Rgba32((float)foundColumn / LUT_WIDTH, (float)foundRow / LUT_HEIGHT, 0, pixel.A);
 				}
 			}
@@ -127,6 +151,7 @@ namespace PaletteConverter
 
 		private static void GetColorIndexes(Rgba32[,] colors, Rgba32 color, out int columnIndex, out int rowIndex)
 		{
+			// Find color in buffer
 			for (int y = 0; y < colors.GetLength(0); y++)
 			{
 				for (int x = 0; x < colors.GetLength(1); x++)
@@ -140,6 +165,7 @@ namespace PaletteConverter
 				}
 			}
 
+			// Color was not found
 			columnIndex = -1;
 			rowIndex = -1;
 			return;
