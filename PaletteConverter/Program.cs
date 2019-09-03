@@ -9,11 +9,14 @@ namespace PaletteConverter
 {
 	public class Program
 	{
+		private const int LUT_WIDTH = 4;
+		private const int LUT_HEIGHT = 4;
+
 		private static void Main(string[] args)
 		{
 			string filePath = args[0];
 
-			var colors = new Color[256, 256];
+			var colors = new Color[LUT_WIDTH, LUT_HEIGHT];
 			int colorsColumnIndex = 0;
 			int colorsRowIndex = 0;
 
@@ -44,16 +47,16 @@ namespace PaletteConverter
 			Bitmap lut;
 			if (colorsRowIndex <= 0)
 			{
-				lut = new Bitmap(256, 1);
-				for (int i = 0; i < 256; i++)
+				lut = new Bitmap(LUT_WIDTH, 1);
+				for (int i = 0; i < LUT_WIDTH; i++)
 					lut.SetPixel(i, 0, i <= colorsColumnIndex ? colors[i, 0] : Color.Black);
 			}
 			else
 			{
-				lut = new Bitmap(256, 256);
-				for (int y = 0; y < 256; y++)
+				lut = new Bitmap(LUT_WIDTH, LUT_HEIGHT);
+				for (int y = 0; y < LUT_WIDTH; y++)
 				{
-					for (int x = 0; x < 256; x++)
+					for (int x = 0; x < LUT_HEIGHT; x++)
 					{
 						Color color;
 						if (y <= colorsColumnIndex && x <= colorsRowIndex)
@@ -96,16 +99,16 @@ namespace PaletteConverter
 						colors[foundColumn, foundRow] = lutPixel;
 
 						colorsColumnIndex++;
-						if (colorsColumnIndex >= 256)
+						if (colorsColumnIndex >= LUT_WIDTH)
 						{
 							colorsColumnIndex = 0;
 							colorsRowIndex++;
 						}
 					}
 
-					if (colorsColumnIndex >= 256 || colorsRowIndex >= 256)
+					if (colorsRowIndex >= LUT_HEIGHT)
 					{
-						Console.WriteLine($"ERROR: More than {256 * 256} colors found!");
+						Console.WriteLine($"ERROR: More than {LUT_WIDTH * LUT_HEIGHT} colors found!");
 						return false;
 					}
 
