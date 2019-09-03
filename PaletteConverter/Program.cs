@@ -86,9 +86,7 @@ namespace PaletteConverter
 					var pixel = bmp.GetPixel(x, y);
 					var lutPixel = Color.FromArgb(pixel.R, pixel.G, pixel.B);
 
-					int foundColumn;
-					int foundRow;
-					GetColorIndexes(colors, lutPixel, out foundColumn, out foundRow);
+					GetColorIndexes(colors, lutPixel, out int foundColumn, out int foundRow);
 
 					if (foundColumn < 0 || foundRow < 0)
 					{
@@ -111,10 +109,7 @@ namespace PaletteConverter
 						return false;
 					}
 
-					//if (foundRow != 0)
-						//Console.Write($"Setting pixel at {x}, {y} to R: {foundColumn}, G: {foundRow}");
-
-					var newPixel = Color.FromArgb(255, foundColumn, foundRow, 0);
+					var newPixel = Color.FromArgb(pixel.A, foundColumn, foundRow, 0);
 					bmp.SetPixel(x, y, newPixel);
 				}
 			}
