@@ -9,8 +9,8 @@ namespace PaletteConverter
 {
 	public class Program
 	{
-		private const int LUT_WIDTH = 4;
-		private const int LUT_HEIGHT = 4;
+		private const int LUT_WIDTH = 256;
+		private const int LUT_HEIGHT = 256;
 
 		private static void Main(string[] args)
 		{
@@ -59,10 +59,10 @@ namespace PaletteConverter
 					for (int x = 0; x < LUT_HEIGHT; x++)
 					{
 						Color color;
-						if (y <= colorsColumnIndex && x <= colorsRowIndex)
-							color = colors[y, x];
-						else
+						if (x > colorsRowIndex || (x == colorsRowIndex && y > colorsColumnIndex))
 							color = Color.Black;
+						else
+							color = colors[y, x];
 
 						lut.SetPixel(y, x, color);
 					}
