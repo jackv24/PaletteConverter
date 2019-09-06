@@ -24,7 +24,7 @@ namespace PaletteConverter
             string rootPath;
 
             string fileName = Path.GetFileNameWithoutExtension(filePath);
-            string outputDir = $"{fileName}_processed";
+            string outputDir;
 
             // If path is a directory, run on all files inside
             var attr = File.GetAttributes(filePath);
@@ -37,6 +37,8 @@ namespace PaletteConverter
 
                 // A root path was already provided
                 rootPath = filePath;
+
+                outputDir = $"{fileName}_processed";
             }
             // If path is a single file, just process the one file
             else
@@ -47,6 +49,8 @@ namespace PaletteConverter
 
                 // A single file path was provided, so the root path is the folder containing that file
                 rootPath = filePath.Substring(0, filePath.Length - Path.GetFileName(filePath).Length);
+
+                outputDir = rootPath;
             }
 
             if (!ProcessImages(rootPath, outputDir, files, colors, ref colorsColumnIndex, ref colorsRowIndex))
@@ -152,12 +156,13 @@ namespace PaletteConverter
             if (string.IsNullOrWhiteSpace(targetPath))
                 throw new ArgumentNullException("destinationPath");
 
+            sourceRootPath = Path.GetFullPath(sourceRootPath);
             sourcePath = Path.GetFullPath(sourcePath);
+            targetPath = Path.GetFullPath(targetPath);
 
             // trimmedPath becomes the file path with all the subfolders, but without the
             // sourceRootPath that comes in front of it. i.e. it strips the value passed
-            // in sourceRootPath from the value passed in sourcePath. The "+ 1" is to include the
-            // trailing "\" in the path.
+            // in sourceRootPath from the value passed in sourcePath.
             string trimmedPath = sourcePath.Substring(sourceRootPath.Length + 1);
             string newPath = Path.Combine(targetPath, trimmedPath);
             string fileName = Path.GetFileName(sourcePath);
